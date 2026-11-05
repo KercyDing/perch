@@ -259,6 +259,10 @@ notification appearance was also confirmed manually.
 `StatusNotifierItem` publishes either a themed name the host resolves itself or
 an array of pixmaps it picks from per display scale. perch uses both.
 
+Windows takes one `HICON`; perch picks the frame at the DPI-reported size, so a
+`set` of 16/20/24/32 px is pixel-exact. `named` there means a resource in the
+executable — embed PNGs or an ICO instead.
+
 | Source | HiDPI | Notes |
 | --- | --- | --- |
 | `Icon.svg` | best | Exported to a private icon theme; the host renders it at any size |

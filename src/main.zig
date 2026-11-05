@@ -8,6 +8,16 @@ const Io = std.Io;
 
 const perch = @import("perch");
 
+/// Windows has no themed names — `named` is an exe resource there.
+const doctor_icon: perch.Icon = .{
+    .set = &.{
+        .{ .bytes = @embedFile("icons/doctor-16.png") },
+        .{ .bytes = @embedFile("icons/doctor-20.png") },
+        .{ .bytes = @embedFile("icons/doctor-24.png") },
+        .{ .bytes = @embedFile("icons/doctor-32.png") },
+    },
+};
+
 pub fn main(init: std.process.Init) !void {
     // Call first: without this the shell stretches the tray icon.
     perch.awareDpi();
@@ -47,7 +57,11 @@ pub fn main(init: std.process.Init) !void {
         .app_id = "dev.perch.doctor",
         .title = "perch",
         .tooltip = "perch doctor",
-        .icon = .{ .named = if (builtin.os.tag == .macos) "gearshape" else "applications-system" },
+        .icon = switch (builtin.os.tag) {
+            .windows => doctor_icon,
+            .macos => .{ .named = "gearshape" },
+            else => .{ .named = "applications-system" },
+        },
         .menu = &menu,
         .linux = .{ .environ = init.minimal.environ },
         .handler = .{ .ctx = &doctor, .on_activate = Doctor.onActivate },

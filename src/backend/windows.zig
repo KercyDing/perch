@@ -514,8 +514,10 @@ pub const Backend = struct {
             .y = @as(i16, @bitCast(@as(u16, @truncate(raw >> 16)))),
         };
 
+        // Version 4 sends both the NIN_* code and the raw mouse message, so
+        // handling both would fire every callback twice and pop the menu twice.
         switch (event) {
-            win32.NIN_SELECT, win32.NIN_KEYSELECT, win32.WM_LBUTTONUP => {
+            win32.NIN_SELECT, win32.NIN_KEYSELECT => {
                 if (self.owner.options.leftClick() == .show_menu and self.owner.menu != null) {
                     self.popupMenu();
                 } else {
@@ -523,7 +525,7 @@ pub const Backend = struct {
                 }
             },
             win32.WM_MBUTTONUP => self.owner.dispatchClick(.{ .button = .middle, .at = at }),
-            win32.WM_RBUTTONUP, win32.WM_CONTEXTMENU => {
+            win32.WM_CONTEXTMENU => {
                 self.owner.dispatchClick(.{ .button = .right, .at = at });
                 if (self.owner.menu != null) self.popupMenu();
             },

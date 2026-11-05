@@ -142,10 +142,15 @@ test "version 4 click coordinates and notification callbacks" {
     try std.testing.expectEqual(@as(usize, 1), state.clicks);
     try std.testing.expectEqual(perch.MouseButton.left, state.last_click.?.button);
     try std.testing.expectEqual(perch.Point{ .x = -12, .y = -34 }, state.last_click.?.at.?);
+    // Version 4 also sends the raw message; it must not double the callback.
+    iconEvent(tray, win32.WM_LBUTTONUP);
+    try std.testing.expectEqual(@as(usize, 1), state.clicks);
     iconEvent(tray, win32.WM_MBUTTONUP);
     try std.testing.expectEqual(perch.MouseButton.middle, state.last_click.?.button);
     iconEvent(tray, win32.WM_CONTEXTMENU);
     try std.testing.expectEqual(perch.MouseButton.right, state.last_click.?.button);
+    iconEvent(tray, win32.WM_RBUTTONUP);
+    try std.testing.expectEqual(@as(usize, 3), state.clicks);
     iconEvent(tray, win32.NIN_KEYSELECT);
     try std.testing.expectEqual(perch.MouseButton.left, state.last_click.?.button);
 

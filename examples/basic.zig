@@ -7,15 +7,8 @@ const std = @import("std");
 const builtin = @import("builtin");
 const perch = @import("perch");
 
-/// Windows cannot resolve themed names; reuse the rich example's bitmaps.
-const icon_windows: perch.Icon = .{
-    .set = &.{
-        .{ .bytes = @embedFile("icons/rich-16.png") },
-        .{ .bytes = @embedFile("icons/rich-20.png") },
-        .{ .bytes = @embedFile("icons/rich-24.png") },
-        .{ .bytes = @embedFile("icons/rich-32.png") },
-    },
-};
+/// Windows cannot resolve themed names; reuse the rich example's icon.
+const icon_windows: perch.Icon = .{ .bytes = @embedFile("icons/rich.ico") };
 
 const App = struct {
     verbose_id: perch.MenuItem.Id = 0,

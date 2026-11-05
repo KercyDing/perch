@@ -8,15 +8,9 @@ const Io = std.Io;
 
 const perch = @import("perch");
 
-/// Windows has no themed names — `named` is an exe resource there.
-const doctor_icon: perch.Icon = .{
-    .set = &.{
-        .{ .bytes = @embedFile("icons/doctor-16.png") },
-        .{ .bytes = @embedFile("icons/doctor-20.png") },
-        .{ .bytes = @embedFile("icons/doctor-24.png") },
-        .{ .bytes = @embedFile("icons/doctor-32.png") },
-    },
-};
+/// Windows has no themed names — `named` is an exe resource there. The ICO
+/// carries 16/20/24/32 frames, so one file covers every scale.
+const doctor_icon: perch.Icon = .{ .bytes = @embedFile("icons/doctor.ico") };
 
 pub fn main(init: std.process.Init) !void {
     // Call first: without this the shell stretches the tray icon.

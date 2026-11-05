@@ -8,25 +8,10 @@ const std = @import("std");
 const builtin = @import("builtin");
 const perch = @import("perch");
 
-/// Windows cannot decode SVG; these are the same art at the sizes the shell
-/// asks for, so the icon stays sharp at every scale.
-const icon_windows: perch.Icon = .{
-    .set = &.{
-        .{ .bytes = @embedFile("icons/rich-16.png") },
-        .{ .bytes = @embedFile("icons/rich-20.png") },
-        .{ .bytes = @embedFile("icons/rich-24.png") },
-        .{ .bytes = @embedFile("icons/rich-32.png") },
-    },
-};
-
-const attention_windows: perch.Icon = .{
-    .set = &.{
-        .{ .bytes = @embedFile("icons/rich-attention-16.png") },
-        .{ .bytes = @embedFile("icons/rich-attention-20.png") },
-        .{ .bytes = @embedFile("icons/rich-attention-24.png") },
-        .{ .bytes = @embedFile("icons/rich-attention-32.png") },
-    },
-};
+/// Windows cannot decode SVG. Each ICO carries 16/20/24/32 frames, matching
+/// the sizes the shell asks for.
+const icon_windows: perch.Icon = .{ .bytes = @embedFile("icons/rich.ico") };
+const attention_windows: perch.Icon = .{ .bytes = @embedFile("icons/rich-attention.ico") };
 
 /// Rendered by the desktop at whatever size the display scale asks for, so it
 /// stays sharp where a fixed-size bitmap would not.

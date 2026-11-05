@@ -7,6 +7,16 @@ const std = @import("std");
 const builtin = @import("builtin");
 const perch = @import("perch");
 
+/// Windows cannot resolve themed names; reuse the rich example's bitmaps.
+const icon_windows: perch.Icon = .{
+    .set = &.{
+        .{ .bytes = @embedFile("icons/rich-16.png") },
+        .{ .bytes = @embedFile("icons/rich-20.png") },
+        .{ .bytes = @embedFile("icons/rich-24.png") },
+        .{ .bytes = @embedFile("icons/rich-32.png") },
+    },
+};
+
 const App = struct {
     verbose_id: perch.MenuItem.Id = 0,
     light_id: perch.MenuItem.Id = 0,
@@ -69,7 +79,11 @@ pub fn main(init: std.process.Init) !void {
         .app_id = "dev.perch.example.basic",
         .title = "perch",
         .tooltip = "perch example",
-        .icon = .{ .named = if (builtin.os.tag == .macos) "gearshape" else "applications-system" },
+        .icon = switch (builtin.os.tag) {
+            .windows => icon_windows,
+            .macos => .{ .named = "gearshape" },
+            else => .{ .named = "applications-system" },
+        },
         .menu = &menu,
         // Left click opens the menu; on_click then only sees the other buttons.
         // Set this to `.activate` to receive left clicks instead.

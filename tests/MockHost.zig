@@ -58,6 +58,8 @@ conn: *Connection,
 watcher_name: []const u8,
 items: std.ArrayList(Item) = .empty,
 notifications: std.ArrayList(Posted) = .empty,
+/// Ids seen in `ItemsPropertiesUpdated`.
+updates: std.ArrayList(i32) = .empty,
 next_notification_id: u32 = 100,
 body: wire.Writer,
 
@@ -77,6 +79,11 @@ pub fn create(
     if (try conn.requestName(sni.notifications_name, Connection.request_name_do_not_queue) != 1) {
         return error.NameTaken;
     }
+    // A host learns about toggles from this signal, so it must be matched.
+    try conn.addMatch(
+        "type='signal',interface='" ++ perch.linux.DBusMenu.interface ++
+            "',member='ItemsPropertiesUpdated'",
+    );
 
     const self = try gpa.create(MockHost);
     self.* = .{
@@ -94,6 +101,7 @@ pub fn destroy(self: *MockHost) void {
     self.items.deinit(gpa);
     for (self.notifications.items) |*posted| posted.deinit(gpa);
     self.notifications.deinit(gpa);
+    self.updates.deinit(gpa);
     self.body.deinit();
     self.conn.destroy();
     gpa.destroy(self);
@@ -117,6 +125,7 @@ fn readable(self: *MockHost) !bool {
 }
 
 fn handle(self: *MockHost, message: Message) !void {
+    if (message.type == .signal) return self.handleSignal(message);
     if (message.type != .method_call) return;
     const member = message.member orelse return;
 
@@ -151,6 +160,21 @@ fn handle(self: *MockHost, message: Message) !void {
         "org.freedesktop.DBus.Error.UnknownMethod",
         "the mock host does not implement this",
     );
+}
+
+/// The only signal the mock host cares about.
+fn handleSignal(self: *MockHost, message: Message) !void {
+    const member = message.member orelse return;
+    if (!std.mem.eql(u8, member, "ItemsPropertiesUpdated")) return;
+
+    var r: wire.Reader = .init(message.body, message.endian);
+    const end = try r.arrayBegin("(ia{sv})");
+    while (r.pos < end) {
+        try r.structBegin();
+        try self.updates.append(self.gpa, try r.int(i32));
+        const properties = try r.arrayBegin("{sv}");
+        r.pos = properties;
+    }
 }
 
 fn handleNotify(self: *MockHost, message: Message) !void {

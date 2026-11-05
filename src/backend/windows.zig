@@ -204,9 +204,13 @@ pub const Backend = struct {
             data.dwInfoFlags |= win32.NIIF_RESPECT_QUIET_TIME;
         }
 
-        // Balloons have no buttons. Saying so once beats dropping them silently.
+        // Balloons have no buttons or progress bar. Saying so beats dropping
+        // them silently.
         if (notification.actions.len > 0) {
             log.warn("perch: notification actions are not supported by shell balloons", .{});
+        }
+        if (notification.progress != null) {
+            log.warn("perch: notification progress is not supported by shell balloons", .{});
         }
 
         self.balloon_tag = notification.tag;
@@ -394,10 +398,10 @@ pub const Backend = struct {
                 if (win32.LoadImageW(instance, @ptrCast(&buffer), win32.IMAGE_ICON, @intCast(wanted), @intCast(wanted), 0)) |handle| return @ptrCast(handle);
             }
         }
-        // LoadIconW returns a shared handle, which must not be destroyed. Use
-        // LoadImageW without LR_SHARED so every stored handle is owned.
-        const handle = win32.LoadImageW(null, win32.IDI_APPLICATION, win32.IMAGE_ICON, @intCast(wanted), @intCast(wanted), 0) orelse return null;
-        return @ptrCast(handle);
+        // A system icon only loads with LR_SHARED, and that handle must not be
+        // destroyed. Copy it so every stored handle is owned.
+        const shared = win32.LoadImageW(null, win32.IDI_APPLICATION, win32.IMAGE_ICON, @intCast(wanted), @intCast(wanted), win32.LR_SHARED) orelse return null;
+        return @ptrCast(win32.CopyImage(shared, win32.IMAGE_ICON, 0, 0, 0) orelse return null);
     }
 
     // -- menus ---------------------------------------------------------------

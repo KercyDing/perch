@@ -230,6 +230,19 @@ test "native tray creation and icon replacement clean up on allocation failure" 
     try std.testing.checkAllAllocationFailures(std.testing.allocator, allocationFailureScenario, .{});
 }
 
+test "an unsupported icon falls back to a stock HICON" {
+    // SVG and unknown themed names decode to nothing on Windows. A null icon
+    // would also make the shell drop balloon notifications.
+    const tray = try perch.Tray.create(std.testing.allocator, .{
+        .io = std.testing.io,
+        .app_id = "dev.perch.windows.fallback",
+        .icon = .{ .svg = "<svg xmlns=\"http://www.w3.org/2000/svg\"/>" },
+        .status = .passive,
+    });
+    defer tray.destroy();
+    try std.testing.expect(tray.impl.icon != null);
+}
+
 test "native PNG icons can be loaded from a Unicode file path" {
     const gpa = std.testing.allocator;
     const png = try perch.image.png.testImage(gpa, 16, 16, &red);

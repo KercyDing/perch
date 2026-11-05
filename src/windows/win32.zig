@@ -255,6 +255,7 @@ pub extern "user32" fn SetWindowLongPtrW(HWND, i32, isize) callconv(.winapi) isi
 pub extern "user32" fn GetWindowLongPtrW(HWND, i32) callconv(.winapi) isize;
 pub extern "user32" fn LoadIconW(?HINSTANCE, [*:0]const u16) callconv(.winapi) ?HICON;
 pub extern "user32" fn LoadImageW(?HINSTANCE, [*:0]const u16, UINT, i32, i32, UINT) callconv(.winapi) ?*anyopaque;
+pub extern "user32" fn CopyImage(*anyopaque, UINT, i32, i32, UINT) callconv(.winapi) ?*anyopaque;
 pub extern "user32" fn DestroyIcon(HICON) callconv(.winapi) BOOL;
 pub extern "user32" fn CreateIconIndirect(*ICONINFO) callconv(.winapi) ?HICON;
 pub extern "user32" fn CreatePopupMenu() callconv(.winapi) ?HMENU;

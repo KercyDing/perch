@@ -9,6 +9,8 @@ const perch = @import("perch");
 
 const App = struct {
     verbose_id: perch.MenuItem.Id = 0,
+    light_id: perch.MenuItem.Id = 0,
+    dark_id: perch.MenuItem.Id = 0,
     quit_id: perch.MenuItem.Id = 0,
 
     fn onReady(ctx: ?*anyopaque, tray: *perch.Tray) void {
@@ -26,6 +28,8 @@ const App = struct {
         } else if (id == self.verbose_id) {
             const on = tray.menu.?.find(id).?.checked;
             std.log.info("verbose is now {}", .{on});
+        } else if (id == self.light_id or id == self.dark_id) {
+            std.log.info("theme is now {s}", .{if (id == self.light_id) "light" else "dark"});
         }
     }
 
@@ -54,8 +58,8 @@ pub fn main(init: std.process.Init) !void {
     app.verbose_id = try menu.addCheckbox("Verbose logging", false);
 
     const theme = try menu.addSubmenu("Theme");
-    _ = try theme.addRadio("Light", 1, true);
-    _ = try theme.addRadio("Dark", 1, false);
+    app.light_id = try theme.addRadio("Light", 1, true);
+    app.dark_id = try theme.addRadio("Dark", 1, false);
 
     try menu.addSeparator();
     app.quit_id = try menu.add(.{ .label = "Quit", .accelerator = "Ctrl+Q" });

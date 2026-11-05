@@ -26,6 +26,11 @@ pub const MenuItem = @import("menu.zig").MenuItem;
 pub const Icon = @import("icon.zig").Icon;
 pub const Notification = @import("notification.zig").Notification;
 
+/// Per-Monitor V2 on Windows; does nothing elsewhere.
+///
+/// Call before any window.
+pub const awareDpi = @import("dpi.zig").awareDpi;
+
 /// Image decoding, exposed because callers sometimes want to inspect or
 /// pre-decode icons themselves.
 pub const image = @import("image.zig");

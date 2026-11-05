@@ -547,6 +547,13 @@ pub const Backend = struct {
         }
     }
 
+    /// Settings broadcasts are frequent; only a size change needs new handles.
+    fn handleDisplayChange(self: *Backend) void {
+        if (win32.smallIconSize() == self.built_for) return;
+        self.loadIcons() catch {};
+        self.refreshIcon() catch {};
+    }
+
     /// Explorer restarted: every icon is gone and has to be added again. The DPI
     /// may have changed with it, so the handles are rebuilt too.
     fn handleTaskbarCreated(self: *Backend) void {
@@ -582,6 +589,10 @@ fn windowProc(
             self.stopping = true;
             // This message already wakes GetMessage. Posting WM_QUIT here would
             // poison the thread's queue for other trays or an enclosing loop.
+            return 0;
+        },
+        win32.WM_SETTINGCHANGE, win32.WM_DISPLAYCHANGE, win32.WM_DPICHANGED => {
+            self.handleDisplayChange();
             return 0;
         },
         win32.WM_DESTROY, win32.WM_CLOSE => {

@@ -107,6 +107,8 @@ const App = struct {
 };
 
 pub fn main(init: std.process.Init) !void {
+    // Before any window: an unaware process gets a stretched tray icon.
+    perch.awareDpi();
     const gpa = init.gpa;
 
     var menu = perch.Menu.init(gpa);

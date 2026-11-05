@@ -9,6 +9,8 @@ const Io = std.Io;
 const perch = @import("perch");
 
 pub fn main(init: std.process.Init) !void {
+    // Call first: without this the shell stretches the tray icon.
+    perch.awareDpi();
     const gpa = init.gpa;
     const io = init.io;
 

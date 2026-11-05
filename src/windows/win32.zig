@@ -143,6 +143,9 @@ pub const WM_RBUTTONUP: UINT = 0x0205;
 pub const WM_MBUTTONUP: UINT = 0x0208;
 pub const WM_LBUTTONDBLCLK: UINT = 0x0203;
 pub const WM_CONTEXTMENU: UINT = 0x007B;
+pub const WM_SETTINGCHANGE: UINT = 0x001A;
+pub const WM_DISPLAYCHANGE: UINT = 0x007E;
+pub const WM_DPICHANGED: UINT = 0x02E0;
 pub const WM_APP: UINT = 0x8000;
 
 /// Our own messages, on top of WM_APP.
@@ -263,6 +266,8 @@ pub extern "user32" fn TrackPopupMenuEx(HMENU, UINT, i32, i32, HWND, ?*TPMPARAMS
 pub extern "user32" fn SetForegroundWindow(HWND) callconv(.winapi) BOOL;
 pub extern "user32" fn GetCursorPos(*POINT) callconv(.winapi) BOOL;
 pub extern "user32" fn GetSystemMetrics(i32) callconv(.winapi) i32;
+pub extern "user32" fn GetSystemMetricsForDpi(i32, u32) callconv(.winapi) i32;
+pub extern "user32" fn GetDpiForSystem() callconv(.winapi) u32;
 pub extern "user32" fn GetParent(HWND) callconv(.winapi) ?HWND;
 pub extern "user32" fn IsWindowVisible(HWND) callconv(.winapi) BOOL;
 pub extern "user32" fn SendMessageW(HWND, UINT, WPARAM, LPARAM) callconv(.winapi) LRESULT;
@@ -284,9 +289,12 @@ pub extern "kernel32" fn GetModuleHandleW(?[*:0]const u16) callconv(.winapi) ?HI
 
 pub extern "shell32" fn Shell_NotifyIconW(DWORD, *NOTIFYICONDATAW) callconv(.winapi) BOOL;
 
-/// `GetSystemMetrics` reports the tray icon size the current DPI wants.
+/// Physical tray icon size. The notification area lives on the primary display,
+/// so the system DPI is the right source.
+///
+/// Requires Windows 10 1607.
 pub fn smallIconSize() u32 {
-    const size = GetSystemMetrics(SM_CXSMICON);
+    const size = GetSystemMetricsForDpi(SM_CXSMICON, GetDpiForSystem());
     return if (size > 0) @intCast(size) else 16;
 }
 

@@ -112,6 +112,28 @@ test "native tray creation, updates, shell registration and recovery" {
     try tray.pump();
 }
 
+test "display change rebuilds only on size change" {
+    var state: State = .{};
+    const tray = try create(&state);
+    defer tray.destroy();
+
+    // Pretend the handles are stale.
+    const stale_frames = tray.impl.icon_frames.ptr;
+    tray.impl.built_for = 0;
+    _ = win32.SendMessageW(tray.impl.window, win32.WM_SETTINGCHANGE, 0, 0);
+    try std.testing.expectEqual(win32.smallIconSize(), tray.impl.built_for);
+    try std.testing.expect(tray.impl.icon != null);
+    try std.testing.expect(tray.impl.icon_frames.ptr != stale_frames);
+    // Proves the shell accepted the rebuilt handle.
+    try tray.setTooltip("rebuilt");
+
+    // Same size: no rebuild.
+    const current_frames = tray.impl.icon_frames.ptr;
+    _ = win32.SendMessageW(tray.impl.window, win32.WM_DISPLAYCHANGE, 0, 0);
+    _ = win32.SendMessageW(tray.impl.window, win32.WM_DPICHANGED, 0, 0);
+    try std.testing.expectEqual(current_frames, tray.impl.icon_frames.ptr);
+}
+
 test "version 4 click coordinates and notification callbacks" {
     var state: State = .{};
     const tray = try create(&state);

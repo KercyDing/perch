@@ -112,6 +112,28 @@ test "native tray creation, updates, shell registration and recovery" {
     try tray.pump();
 }
 
+test "display change rebuilds only on size change" {
+    var state: State = .{};
+    const tray = try create(&state);
+    defer tray.destroy();
+
+    // Pretend the handles are stale.
+    const stale_frames = tray.impl.icon_frames.ptr;
+    tray.impl.built_for = 0;
+    _ = win32.SendMessageW(tray.impl.window, win32.WM_SETTINGCHANGE, 0, 0);
+    try std.testing.expectEqual(win32.smallIconSize(), tray.impl.built_for);
+    try std.testing.expect(tray.impl.icon != null);
+    try std.testing.expect(tray.impl.icon_frames.ptr != stale_frames);
+    // Proves the shell accepted the rebuilt handle.
+    try tray.setTooltip("rebuilt");
+
+    // Same size: no rebuild.
+    const current_frames = tray.impl.icon_frames.ptr;
+    _ = win32.SendMessageW(tray.impl.window, win32.WM_DISPLAYCHANGE, 0, 0);
+    _ = win32.SendMessageW(tray.impl.window, win32.WM_DPICHANGED, 0, 0);
+    try std.testing.expectEqual(current_frames, tray.impl.icon_frames.ptr);
+}
+
 test "version 4 click coordinates and notification callbacks" {
     var state: State = .{};
     const tray = try create(&state);
@@ -120,10 +142,15 @@ test "version 4 click coordinates and notification callbacks" {
     try std.testing.expectEqual(@as(usize, 1), state.clicks);
     try std.testing.expectEqual(perch.MouseButton.left, state.last_click.?.button);
     try std.testing.expectEqual(perch.Point{ .x = -12, .y = -34 }, state.last_click.?.at.?);
+    // Version 4 also sends the raw message; it must not double the callback.
+    iconEvent(tray, win32.WM_LBUTTONUP);
+    try std.testing.expectEqual(@as(usize, 1), state.clicks);
     iconEvent(tray, win32.WM_MBUTTONUP);
     try std.testing.expectEqual(perch.MouseButton.middle, state.last_click.?.button);
     iconEvent(tray, win32.WM_CONTEXTMENU);
     try std.testing.expectEqual(perch.MouseButton.right, state.last_click.?.button);
+    iconEvent(tray, win32.WM_RBUTTONUP);
+    try std.testing.expectEqual(@as(usize, 3), state.clicks);
     iconEvent(tray, win32.NIN_KEYSELECT);
     try std.testing.expectEqual(perch.MouseButton.left, state.last_click.?.button);
 
@@ -206,6 +233,19 @@ fn allocationFailureScenario(gpa: std.mem.Allocator) !void {
 
 test "native tray creation and icon replacement clean up on allocation failure" {
     try std.testing.checkAllAllocationFailures(std.testing.allocator, allocationFailureScenario, .{});
+}
+
+test "an unsupported icon falls back to a stock HICON" {
+    // SVG and unknown themed names decode to nothing on Windows. A null icon
+    // would also make the shell drop balloon notifications.
+    const tray = try perch.Tray.create(std.testing.allocator, .{
+        .io = std.testing.io,
+        .app_id = "dev.perch.windows.fallback",
+        .icon = .{ .svg = "<svg xmlns=\"http://www.w3.org/2000/svg\"/>" },
+        .status = .passive,
+    });
+    defer tray.destroy();
+    try std.testing.expect(tray.impl.icon != null);
 }
 
 test "native PNG icons can be loaded from a Unicode file path" {

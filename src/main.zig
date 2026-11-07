@@ -8,7 +8,13 @@ const Io = std.Io;
 
 const perch = @import("perch");
 
+/// Windows has no themed names — `named` is an exe resource there. The ICO
+/// carries 16/20/24/32 frames, so one file covers every scale.
+const doctor_icon: perch.Icon = .{ .bytes = @embedFile("icons/doctor.ico") };
+
 pub fn main(init: std.process.Init) !void {
+    // Call first: without this the shell stretches the tray icon.
+    perch.awareDpi();
     const gpa = init.gpa;
     const io = init.io;
 
@@ -34,18 +40,22 @@ pub fn main(init: std.process.Init) !void {
 
     var menu = perch.Menu.init(gpa);
     defer menu.deinit();
-    _ = try menu.addItem("Hello from perch");
+    const hello = try menu.addItem("Hello from perch");
     try menu.addSeparator();
     const quit = try menu.addItem("Quit");
 
-    var doctor: Doctor = .{ .quit_id = quit };
+    var doctor: Doctor = .{ .hello_id = hello, .quit_id = quit, .out = out };
 
     const tray = perch.Tray.create(gpa, .{
         .io = io,
         .app_id = "dev.perch.doctor",
         .title = "perch",
         .tooltip = "perch doctor",
-        .icon = .{ .named = if (builtin.os.tag == .macos) "gearshape" else "applications-system" },
+        .icon = switch (builtin.os.tag) {
+            .windows => doctor_icon,
+            .macos => .{ .named = "gearshape" },
+            else => .{ .named = "applications-system" },
+        },
         .menu = &menu,
         .linux = .{ .environ = init.minimal.environ },
         .handler = .{ .ctx = &doctor, .on_activate = Doctor.onActivate },
@@ -108,10 +118,17 @@ fn reportHost(
 }
 
 const Doctor = struct {
+    hello_id: perch.MenuItem.Id,
     quit_id: perch.MenuItem.Id,
+    out: *Io.Writer,
 
     fn onActivate(ctx: ?*anyopaque, tray: *perch.Tray, id: perch.MenuItem.Id) void {
         const self: *Doctor = @ptrCast(@alignCast(ctx.?));
-        if (id == self.quit_id) tray.stop();
+        if (id == self.hello_id) {
+            self.out.print("Hello!\n", .{}) catch {};
+            self.out.flush() catch {};
+        } else if (id == self.quit_id) {
+            tray.stop();
+        }
     }
 };

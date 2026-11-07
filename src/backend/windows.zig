@@ -204,9 +204,13 @@ pub const Backend = struct {
             data.dwInfoFlags |= win32.NIIF_RESPECT_QUIET_TIME;
         }
 
-        // Balloons have no buttons. Saying so once beats dropping them silently.
+        // Balloons have no buttons or progress bar. Saying so beats dropping
+        // them silently.
         if (notification.actions.len > 0) {
             log.warn("perch: notification actions are not supported by shell balloons", .{});
+        }
+        if (notification.progress != null) {
+            log.warn("perch: notification progress is not supported by shell balloons", .{});
         }
 
         self.balloon_tag = notification.tag;
@@ -394,10 +398,10 @@ pub const Backend = struct {
                 if (win32.LoadImageW(instance, @ptrCast(&buffer), win32.IMAGE_ICON, @intCast(wanted), @intCast(wanted), 0)) |handle| return @ptrCast(handle);
             }
         }
-        // LoadIconW returns a shared handle, which must not be destroyed. Use
-        // LoadImageW without LR_SHARED so every stored handle is owned.
-        const handle = win32.LoadImageW(null, win32.IDI_APPLICATION, win32.IMAGE_ICON, @intCast(wanted), @intCast(wanted), 0) orelse return null;
-        return @ptrCast(handle);
+        // A system icon only loads with LR_SHARED, and that handle must not be
+        // destroyed. Copy it so every stored handle is owned.
+        const shared = win32.LoadImageW(null, win32.IDI_APPLICATION, win32.IMAGE_ICON, @intCast(wanted), @intCast(wanted), win32.LR_SHARED) orelse return null;
+        return @ptrCast(win32.CopyImage(shared, win32.IMAGE_ICON, 0, 0, 0) orelse return null);
     }
 
     // -- menus ---------------------------------------------------------------
@@ -510,8 +514,10 @@ pub const Backend = struct {
             .y = @as(i16, @bitCast(@as(u16, @truncate(raw >> 16)))),
         };
 
+        // Version 4 sends both the NIN_* code and the raw mouse message, so
+        // handling both would fire every callback twice and pop the menu twice.
         switch (event) {
-            win32.NIN_SELECT, win32.NIN_KEYSELECT, win32.WM_LBUTTONUP => {
+            win32.NIN_SELECT, win32.NIN_KEYSELECT => {
                 if (self.owner.options.leftClick() == .show_menu and self.owner.menu != null) {
                     self.popupMenu();
                 } else {
@@ -519,7 +525,7 @@ pub const Backend = struct {
                 }
             },
             win32.WM_MBUTTONUP => self.owner.dispatchClick(.{ .button = .middle, .at = at }),
-            win32.WM_RBUTTONUP, win32.WM_CONTEXTMENU => {
+            win32.WM_CONTEXTMENU => {
                 self.owner.dispatchClick(.{ .button = .right, .at = at });
                 if (self.owner.menu != null) self.popupMenu();
             },
@@ -545,6 +551,13 @@ pub const Backend = struct {
             },
             else => {},
         }
+    }
+
+    /// Settings broadcasts are frequent; only a size change needs new handles.
+    fn handleDisplayChange(self: *Backend) void {
+        if (win32.smallIconSize() == self.built_for) return;
+        self.loadIcons() catch {};
+        self.refreshIcon() catch {};
     }
 
     /// Explorer restarted: every icon is gone and has to be added again. The DPI
@@ -582,6 +595,10 @@ fn windowProc(
             self.stopping = true;
             // This message already wakes GetMessage. Posting WM_QUIT here would
             // poison the thread's queue for other trays or an enclosing loop.
+            return 0;
+        },
+        win32.WM_SETTINGCHANGE, win32.WM_DISPLAYCHANGE, win32.WM_DPICHANGED => {
+            self.handleDisplayChange();
             return 0;
         },
         win32.WM_DESTROY, win32.WM_CLOSE => {

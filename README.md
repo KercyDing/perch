@@ -114,16 +114,31 @@ AppIndicator extension. `zig build run` reports which of these is the case.
 A hidden top-level window owns one `NOTIFYICONDATAW` entry and receives the shell's
 callbacks. `NOTIFYICON_VERSION_4` is requested, so the pointer position comes
 with each event. The menu is an `HMENU` built fresh from `perch.Menu` on every
-popup, shown with `TrackPopupMenuEx`. Icons are decoded, then converted to an
-`HICON` at the size `SM_CXSMICON` reports for the current DPI. `TaskbarCreated`
-is handled, so the icon survives an Explorer restart and picks up a DPI change
-with it.
+popup, shown with `TrackPopupMenuEx`. Icons become an `HICON` at the physical
+size the tray asks for (`GetSystemMetricsForDpi`). Explorer restarts and DPI or
+display changes rebuild the handles, sending `NIM_MODIFY` only when the size
+changed.
 
 The owner stays hidden, without a taskbar button. It must be a top-level window:
 message-only windows do not receive the shell's `TaskbarCreated` broadcast.
 Create, update, run, pump and destroy on the creating thread; only `stop` is
 safe to call from another thread. Stopping one tray does not post a thread-wide
 `WM_QUIT`, so other trays and enclosing event loops continue running.
+
+### DPI Awareness
+
+perch does not change the host process's DPI awareness.
+
+Without awareness Windows reports 96 DPI, so the shell stretches the tray icon:
+16 px becomes 20 px at 125% and 32 px at 200%. Set Per-Monitor V2 in the
+application manifest, or call this before creating any window:
+
+```zig
+perch.awareDpi(); // no-op off Windows
+```
+
+It needs Windows 10 1703 and does nothing if a manifest already set it. The
+examples call it at the top of `main`.
 
 Native verification on Windows 11 x64 (build 26300) with Zig 0.17.0 covers shell
 registration and removal, raw and PNG/path icons, Unicode and long tooltips,
@@ -243,6 +258,10 @@ notification appearance was also confirmed manually.
 
 `StatusNotifierItem` publishes either a themed name the host resolves itself or
 an array of pixmaps it picks from per display scale. perch uses both.
+
+Windows takes one `HICON`; perch picks the frame at the DPI-reported size, so a
+`set` of 16/20/24/32 px is pixel-exact. `named` there means a resource in the
+executable — embed PNGs or an ICO instead.
 
 | Source | HiDPI | Notes |
 | --- | --- | --- |

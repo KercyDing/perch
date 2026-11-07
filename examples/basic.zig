@@ -4,10 +4,16 @@
 //!     zig build example-basic
 
 const std = @import("std");
+const builtin = @import("builtin");
 const perch = @import("perch");
+
+/// Windows cannot resolve themed names; reuse the rich example's icon.
+const icon_windows: perch.Icon = .{ .bytes = @embedFile("icons/rich.ico") };
 
 const App = struct {
     verbose_id: perch.MenuItem.Id = 0,
+    light_id: perch.MenuItem.Id = 0,
+    dark_id: perch.MenuItem.Id = 0,
     quit_id: perch.MenuItem.Id = 0,
 
     fn onReady(ctx: ?*anyopaque, tray: *perch.Tray) void {
@@ -25,6 +31,8 @@ const App = struct {
         } else if (id == self.verbose_id) {
             const on = tray.menu.?.find(id).?.checked;
             std.log.info("verbose is now {}", .{on});
+        } else if (id == self.light_id or id == self.dark_id) {
+            std.log.info("theme is now {s}", .{if (id == self.light_id) "light" else "dark"});
         }
     }
 
@@ -42,6 +50,8 @@ const App = struct {
 };
 
 pub fn main(init: std.process.Init) !void {
+    // Before any window: an unaware process gets a stretched tray icon.
+    perch.awareDpi();
     const gpa = init.gpa;
 
     var menu = perch.Menu.init(gpa);
@@ -51,8 +61,8 @@ pub fn main(init: std.process.Init) !void {
     app.verbose_id = try menu.addCheckbox("Verbose logging", false);
 
     const theme = try menu.addSubmenu("Theme");
-    _ = try theme.addRadio("Light", 1, true);
-    _ = try theme.addRadio("Dark", 1, false);
+    app.light_id = try theme.addRadio("Light", 1, true);
+    app.dark_id = try theme.addRadio("Dark", 1, false);
 
     try menu.addSeparator();
     app.quit_id = try menu.add(.{ .label = "Quit", .accelerator = "Ctrl+Q" });
@@ -62,7 +72,11 @@ pub fn main(init: std.process.Init) !void {
         .app_id = "dev.perch.example.basic",
         .title = "perch",
         .tooltip = "perch example",
-        .icon = .{ .named = if (@import("builtin").os.tag == .macos) "gearshape" else "applications-system" },
+        .icon = switch (builtin.os.tag) {
+            .windows => icon_windows,
+            .macos => .{ .named = "gearshape" },
+            else => .{ .named = "applications-system" },
+        },
         .menu = &menu,
         // Left click opens the menu; on_click then only sees the other buttons.
         // Set this to `.activate` to receive left clicks instead.

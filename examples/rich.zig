@@ -5,7 +5,13 @@
 //!     zig build example-rich
 
 const std = @import("std");
+const builtin = @import("builtin");
 const perch = @import("perch");
+
+/// Windows cannot decode SVG. Each ICO carries 16/20/24/32 frames, matching
+/// the sizes the shell asks for.
+const icon_windows: perch.Icon = .{ .bytes = @embedFile("icons/rich.ico") };
+const attention_windows: perch.Icon = .{ .bytes = @embedFile("icons/rich-attention.ico") };
 
 /// Rendered by the desktop at whatever size the display scale asks for, so it
 /// stays sharp where a fixed-size bitmap would not.
@@ -107,6 +113,8 @@ const App = struct {
 };
 
 pub fn main(init: std.process.Init) !void {
+    // Before any window: an unaware process gets a stretched tray icon.
+    perch.awareDpi();
     const gpa = init.gpa;
 
     var menu = perch.Menu.init(gpa);
@@ -127,8 +135,14 @@ pub fn main(init: std.process.Init) !void {
         .app_id = "dev.perch.example.rich",
         .title = "perch",
         .tooltip = "perch, richly",
-        .icon = .{ .svg = icon_svg },
-        .attention_icon = .{ .svg = attention_svg },
+        .icon = switch (builtin.os.tag) {
+            .windows => icon_windows,
+            else => .{ .svg = icon_svg },
+        },
+        .attention_icon = switch (builtin.os.tag) {
+            .windows => attention_windows,
+            else => .{ .svg = attention_svg },
+        },
         .category = .application_status,
         .menu = &menu,
         .handler = .{

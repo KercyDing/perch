@@ -1086,18 +1086,26 @@ pub const Backend = struct {
         try self.conn.replyError(message, "org.freedesktop.DBus.Error.UnknownMethod", "unknown method");
     }
 
-    /// Tells hosts that one item's properties moved, without a full relayout.
+    /// Tells hosts which rows' properties moved, without a full relayout.
+    ///
+    /// A radio click also unchecks its sibling, so name the whole group:
+    /// hosts draw from their cached layout.
     fn notifyItemChanged(self: *Backend, id: u32) Connection.Error!void {
         const menu = self.owner.menu orelse return;
         const node = DBusMenu.findNode(menu, @intCast(id)) orelse return;
 
         self.body.clearRetainingCapacity();
         const updated = try self.body.arrayBegin("(ia{sv})");
-        try self.body.structBegin();
-        try self.body.int(i32, node.id());
-        const properties = try self.body.arrayBegin("{sv}");
-        try DBusMenu.writeNodeProperties(&self.body, node, .all);
-        self.body.arrayEnd(properties);
+        switch (node) {
+            .item => |item| {
+                if (item.kind == .radio) {
+                    try self.writeRadioGroupUpdates(menu, item.radio_group);
+                } else {
+                    try self.writeItemUpdate(node);
+                }
+            },
+            .root => try self.writeItemUpdate(node),
+        }
         self.body.arrayEnd(updated);
 
         const removed = try self.body.arrayBegin("(ias)");
@@ -1110,6 +1118,25 @@ pub const Backend = struct {
             .signature = "a(ia{sv})a(ias)",
             .body = self.body.bytes(),
         });
+    }
+
+    /// One `(ia{sv})` entry into an open `updated` array.
+    fn writeItemUpdate(self: *Backend, node: DBusMenu.Node) Connection.Error!void {
+        try self.body.structBegin();
+        try self.body.int(i32, node.id());
+        const properties = try self.body.arrayBegin("{sv}");
+        try DBusMenu.writeNodeProperties(&self.body, node, .all);
+        self.body.arrayEnd(properties);
+    }
+
+    /// Every radio in `group`; `menu` is the root, since groups span submenus.
+    fn writeRadioGroupUpdates(self: *Backend, menu: *Menu, group: u16) Connection.Error!void {
+        for (menu.items.items) |*item| {
+            if (item.kind == .radio and item.radio_group == group) {
+                try self.writeItemUpdate(.{ .item = item });
+            }
+            if (item.submenu) |sub| try self.writeRadioGroupUpdates(sub, group);
+        }
     }
 
     const menu_property_names = [_][]const u8{ "Version", "TextDirection", "Status", "IconThemePath" };

@@ -200,14 +200,22 @@ pub fn main(init: std.process.Init) !u8 {
     try scenarioIconNameHost(fixture);
     try scenarioPixmapHost(fixture, sizes.len);
     try scenarioFullPropertyHost(fixture);
-    try scenarioLayoutHost(fixture, .{ .toggle = toggle, .light = light, .dark = dark, .quit = quit });
+    const ids: MenuIds = .{ .toggle = toggle, .light = light, .dark = dark, .quit = quit };
+    try scenarioLayoutHost(fixture, ids);
     try scenarioIncrementalHost(fixture);
-    try scenarioClicks(fixture);
+    try scenarioClicks(fixture, ids);
     try scenarioNotifications(fixture);
 
     std.debug.print("\n{d} checks, {d} failed\n", .{ checks, failures });
     return if (failures == 0) 0 else 1;
 }
+
+const MenuIds = struct {
+    toggle: perch.MenuItem.Id,
+    light: perch.MenuItem.Id,
+    dark: perch.MenuItem.Id,
+    quit: perch.MenuItem.Id,
+};
 
 /// A host that only reads `IconName` — older indicator implementations. Nothing
 /// should crash, and the property must be answerable even though this icon is
@@ -307,12 +315,7 @@ fn scenarioFullPropertyHost(fixture: Fixture) !void {
 /// A host that pulls the whole menu with a property filter, as most do.
 fn scenarioLayoutHost(
     fixture: Fixture,
-    ids: struct {
-        toggle: perch.MenuItem.Id,
-        light: perch.MenuItem.Id,
-        dark: perch.MenuItem.Id,
-        quit: perch.MenuItem.Id,
-    },
+    ids: MenuIds,
 ) !void {
     std.debug.print("host that pulls the whole menu\n", .{});
 
@@ -443,7 +446,7 @@ fn scenarioIncrementalHost(fixture: Fixture) !void {
     check(saw_root, "the root is included", .{});
 }
 
-fn scenarioClicks(fixture: Fixture) !void {
+fn scenarioClicks(fixture: Fixture, ids: MenuIds) !void {
     std.debug.print("clicks, scrolls and menu activation\n", .{});
 
     const before = fixture.seen.clicks.items.len;
@@ -474,11 +477,29 @@ fn scenarioClicks(fixture: Fixture) !void {
     }
 
     // Clicking the checkbox toggles it in the model before the callback runs.
-    const toggle_id: i32 = 1;
-    _ = try fixture.wait(try fixture.host.clickMenuItem(toggle_id));
+    _ = try fixture.wait(try fixture.host.clickMenuItem(@intCast(ids.toggle)));
     check(fixture.seen.activated.items.len == 1, "the menu click was delivered", .{});
-    const item = fixture.tray.menu.?.find(@intCast(toggle_id));
+    const item = fixture.tray.menu.?.find(ids.toggle);
     check(item != null and item.?.checked, "the checkbox toggled", .{});
+
+    // A radio click also unchecks its sibling, which the host must be told.
+    const updates_before = fixture.host.updates.items.len;
+    _ = try fixture.wait(try fixture.host.clickMenuItem(@intCast(ids.dark)));
+    const updates = fixture.host.updates.items[updates_before..];
+    check(
+        std.mem.indexOfScalar(i32, updates, @intCast(ids.dark)) != null,
+        "the clicked radio row is updated, got {any}",
+        .{updates},
+    );
+    check(
+        std.mem.indexOfScalar(i32, updates, @intCast(ids.light)) != null,
+        "the unchecked sibling is updated too, got {any}",
+        .{updates},
+    );
+    const light = fixture.tray.menu.?.find(ids.light);
+    const dark = fixture.tray.menu.?.find(ids.dark);
+    check(light != null and !light.?.checked, "light is unchecked in the model", .{});
+    check(dark != null and dark.?.checked, "dark is checked in the model", .{});
 }
 
 fn scenarioNotifications(fixture: Fixture) !void {

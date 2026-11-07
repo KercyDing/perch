@@ -146,6 +146,7 @@ pub const WM_CONTEXTMENU: UINT = 0x007B;
 pub const WM_SETTINGCHANGE: UINT = 0x001A;
 pub const WM_DISPLAYCHANGE: UINT = 0x007E;
 pub const WM_DPICHANGED: UINT = 0x02E0;
+pub const WM_USER: UINT = 0x0400;
 pub const WM_APP: UINT = 0x8000;
 
 /// Our own messages, on top of WM_APP.
@@ -180,15 +181,15 @@ pub const NIIF_NOSOUND: DWORD = 0x00000010;
 pub const NIIF_RESPECT_QUIET_TIME: DWORD = 0x00000080;
 
 /// Notification-area callbacks, sent as the low word of lParam under version 4.
-pub const NIN_SELECT: UINT = WM_APP + 0;
+pub const NIN_SELECT: UINT = WM_USER + 0;
 pub const NINF_KEY: UINT = 0x1;
 pub const NIN_KEYSELECT: UINT = NIN_SELECT | NINF_KEY;
-pub const NIN_BALLOONSHOW: UINT = WM_APP + 2;
-pub const NIN_BALLOONHIDE: UINT = WM_APP + 3;
-pub const NIN_BALLOONTIMEOUT: UINT = WM_APP + 4;
-pub const NIN_BALLOONUSERCLICK: UINT = WM_APP + 5;
-pub const NIN_POPUPOPEN: UINT = WM_APP + 6;
-pub const NIN_POPUPCLOSE: UINT = WM_APP + 7;
+pub const NIN_BALLOONSHOW: UINT = WM_USER + 2;
+pub const NIN_BALLOONHIDE: UINT = WM_USER + 3;
+pub const NIN_BALLOONTIMEOUT: UINT = WM_USER + 4;
+pub const NIN_BALLOONUSERCLICK: UINT = WM_USER + 5;
+pub const NIN_POPUPOPEN: UINT = WM_USER + 6;
+pub const NIN_POPUPCLOSE: UINT = WM_USER + 7;
 
 pub const MF_BYPOSITION: UINT = 0x00000400;
 
